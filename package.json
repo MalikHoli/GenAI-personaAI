@@ -1,0 +1,19 @@
+{
+  "name": "persona-ai",
+  "version": "1.0.0",
+  "description": "GenAI cohort assignment 1 - AI powered website that lets you have conversation with Hitesh and Piyush",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MalikHoli/GenAI-personaAI.git"
+  },
+  "author": "Mallikarjun Holikatti",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MalikHoli/GenAI-personaAI/issues"
+  },
+  "homepage": "https://github.com/MalikHoli/GenAI-personaAI#readme"
+}

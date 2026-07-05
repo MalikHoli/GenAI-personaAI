@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="chat-layout">
+
+    <!-- LEFT NAVIGATION PANEL -->
+    <aside class="sidebar">
+      <a href="index.html" class="sidebar-home">← Home</a>
+
+      <div class="sidebar-section-label">Personas</div>
+      <nav id="persona-nav-list" class="persona-nav-list">
+        <!-- Persona buttons rendered here by script.js -->
+      </nav>
+
+      <div class="sidebar-footer">
+        Chats are not saved. Switching personas keeps this session only.
+      </div>
+    </aside>
+
+    <!-- RIGHT CHAT PANEL -->
+    <section class="chat-panel">
+      <header class="chat-header">
+        <div class="chat-header-avatar" id="chat-avatar"></div>
+        <div>
+          <div class="chat-header-name" id="chat-persona-name">Persona</div>
+          <div class="chat-header-status">Online</div>
+        </div>
+      </header>
+
+      <div class="messages" id="messages">
+        <!-- Messages rendered here by script.js -->
+      </div>
+
+      <form class="chat-input-bar" id="chat-form">
+        <input
+          type="text"
+          id="chat-input"
+          placeholder="Message..."
+          autocomplete="off"
+        />
+        <button type="submit" class="send-btn" aria-label="Send message">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12L21 3L14 21L11 13L3 12Z" fill="currentColor"/>
+          </svg>
+        </button>
+      </form>
+    </section>
+
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    initChatPage();
+  </script>
+</body>
+</html>

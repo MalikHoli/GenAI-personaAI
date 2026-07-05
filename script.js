@@ -1,0 +1,169 @@
+/* ======================================================
+   EDIT ME: This is the only place you need to change
+   persona names, taglines, and colors.
+   Add more personas by adding more entries here.
+   ====================================================== */
+const PERSONAS = {
+  1: {
+    name: "Persona 1", // <-- rename e.g. "Aria"
+    tagline: "Ask me about tech",
+    initial: "P1",
+    color: "#7c6ff0",
+  },
+  2: {
+    name: "Persona 2", // <-- rename e.g. "Sage"
+    tagline: "Ask me anything else",
+    initial: "P2",
+    color: "#3fb8af",
+  },
+};
+
+const APP = {
+  title: "Ask me about tech",
+  subtitle: "Pick a persona to start chatting",
+};
+
+// In-memory only — resets on page reload, nothing is saved to disk.
+const chatHistories = {};
+Object.keys(PERSONAS).forEach((id) => (chatHistories[id] = []));
+
+let currentPersonaId = null;
+
+/* ---------- Home page ---------- */
+function renderHomePage() {
+  document.getElementById("app-title").textContent = APP.title;
+  document.getElementById("app-subtitle").textContent = APP.subtitle;
+
+  const grid = document.getElementById("persona-grid");
+  grid.innerHTML = "";
+
+  Object.entries(PERSONAS).forEach(([id, persona]) => {
+    const btn = document.createElement("a");
+    btn.href = `chat.html?persona=${id}`;
+    btn.className = "persona-circle-btn";
+    btn.innerHTML = `
+      <div class="persona-avatar" style="background:${persona.color}">
+        ${persona.initial}
+      </div>
+      <span class="persona-label">${persona.name}</span>
+    `;
+    grid.appendChild(btn);
+  });
+}
+
+/* ---------- Chat page ---------- */
+function initChatPage() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedId = params.get("persona");
+  currentPersonaId = PERSONAS[requestedId]
+    ? requestedId
+    : Object.keys(PERSONAS)[0];
+
+  renderPersonaNav();
+  loadPersona(currentPersonaId);
+
+  const form = document.getElementById("chat-form");
+  form.addEventListener("submit", handleSendMessage);
+}
+
+function renderPersonaNav() {
+  const list = document.getElementById("persona-nav-list");
+  list.innerHTML = "";
+
+  Object.entries(PERSONAS).forEach(([id, persona]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "persona-nav-btn" + (id === currentPersonaId ? " active" : "");
+    btn.innerHTML = `
+      <span class="persona-nav-avatar" style="background:${persona.color}">
+        ${persona.initial}
+      </span>
+      <span class="persona-nav-text">${persona.name}</span>
+    `;
+    btn.addEventListener("click", () => {
+      currentPersonaId = id;
+      renderPersonaNav();
+      loadPersona(id);
+    });
+    list.appendChild(btn);
+  });
+}
+
+function loadPersona(id) {
+  const persona = PERSONAS[id];
+
+  document.getElementById("chat-persona-name").textContent = persona.name;
+  const avatar = document.getElementById("chat-avatar");
+  avatar.textContent = persona.initial;
+  avatar.style.background = persona.color;
+
+  // Seed a greeting the first time this persona is opened this session
+  if (chatHistories[id].length === 0) {
+    chatHistories[id].push({
+      sender: "assistant",
+      text: `Hello, I am ${persona.name}. ${persona.tagline}.`,
+    });
+  }
+
+  renderMessages();
+}
+
+function renderMessages() {
+  const container = document.getElementById("messages");
+  container.innerHTML = "";
+  const persona = PERSONAS[currentPersonaId];
+
+  chatHistories[currentPersonaId].forEach((msg) => {
+    const row = document.createElement("div");
+    row.className = `message-row ${msg.sender}`;
+
+    const avatarLetter = msg.sender === "user" ? "You" : persona.initial;
+    const avatarColor = msg.sender === "user" ? "#4a4a5a" : persona.color;
+
+    row.innerHTML = `
+      <div class="message-avatar" style="background:${avatarColor}">${avatarLetter}</div>
+      <div class="message-bubble"></div>
+    `;
+    row.querySelector(".message-bubble").textContent = msg.text;
+    container.appendChild(row);
+  });
+
+  container.scrollTop = container.scrollHeight;
+}
+
+function handleSendMessage(event) {
+  event.preventDefault();
+  const input = document.getElementById("chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+
+  chatHistories[currentPersonaId].push({ sender: "user", text });
+  input.value = "";
+  renderMessages();
+
+  // Placeholder reply — swap this out later for a real AI model call.
+  // setTimeout(() => {
+  //   chatHistories[currentPersonaId].push({
+  //     sender: "assistant",
+  //     text: "(This is a placeholder reply. Connect your AI model here.)"
+  //   });
+  //   renderMessages();
+  // }, 500);
+  fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      personaId: currentPersonaId,
+      history: chatHistories[currentPersonaId],
+    }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      chatHistories[currentPersonaId].push({
+        sender: "assistant",
+        text: data.reply,
+      });
+      renderMessages();
+    });
+}
