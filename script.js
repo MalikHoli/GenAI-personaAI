@@ -10,6 +10,7 @@ const PERSONAS = {
       "Code seekho, chai ke saath — fundamentals, projects, aur career ki har baat",
     initial: "HC",
     color: "#7c6ff0",
+    image: "assets/hitesh.png",
   },
   2: {
     name: "Piyush Garg", // <-- rename e.g. "Sage"
@@ -17,6 +18,7 @@ const PERSONAS = {
       "Stop watching, start building — full-stack, DevOps, aur GenAI, sab kuch project mode mein",
     initial: "PG",
     color: "#3fb8af",
+    image: "assets/piyush.png",
   },
 };
 
@@ -45,7 +47,7 @@ function renderHomePage() {
     btn.className = "persona-circle-btn";
     btn.innerHTML = `
       <div class="persona-avatar" style="background:${persona.color}">
-        ${persona.initial}
+        <img src="${persona.image}" alt="${persona.name}" />
       </div>
       <span class="persona-label">${persona.name}</span>
     `;
@@ -83,7 +85,7 @@ function renderPersonaNav() {
       "persona-nav-btn" + (id === currentPersonaId ? " active" : "");
     btn.innerHTML = `
       <span class="persona-nav-avatar" style="background:${persona.color}">
-        ${persona.initial}
+        <img src="${persona.image}" alt="${persona.name}" />
       </span>
       <span class="persona-nav-text">${persona.name}</span>
     `;
@@ -101,8 +103,8 @@ function loadPersona(id) {
 
   document.getElementById("chat-persona-name").textContent = persona.name;
   const avatar = document.getElementById("chat-avatar");
-  avatar.textContent = persona.initial;
   avatar.style.background = persona.color;
+  avatar.innerHTML = `<img src="${persona.image}" alt="${persona.name}" />`;
 
   // Seed a greeting the first time this persona is opened this session
   if (chatHistories[id].length === 0) {
@@ -124,11 +126,14 @@ function renderMessages() {
     const row = document.createElement("div");
     row.className = `message-row ${msg.sender}`;
 
-    const avatarLetter = msg.sender === "user" ? "You" : persona.initial;
     const avatarColor = msg.sender === "user" ? "#4a4a5a" : persona.color;
+    const avatarInner =
+      +msg.sender === "user"
+        ? "You"
+        : `<img src="${persona.image}" alt="${persona.name}" />`;
 
     row.innerHTML = `
-      <div class="message-avatar" style="background:${avatarColor}">${avatarLetter}</div>
+      <div class="message-avatar" style="background:${avatarColor}">${avatarInner}</div>
       <div class="message-bubble"></div>
     `;
     row.querySelector(".message-bubble").textContent = msg.text;
