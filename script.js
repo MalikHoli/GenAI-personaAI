@@ -50,6 +50,7 @@ function renderHomePage() {
         <img src="${persona.image}" alt="${persona.name}" />
       </div>
       <span class="persona-label">${persona.name}</span>
+      <p class="persona-bio">${persona.tagline}</p>
     `;
     grid.appendChild(btn);
   });
