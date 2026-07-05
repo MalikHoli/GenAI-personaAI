@@ -129,7 +129,7 @@ function renderMessages() {
 
     const avatarColor = msg.sender === "user" ? "#4a4a5a" : persona.color;
     const avatarInner =
-      +msg.sender === "user"
+      msg.sender === "user"
         ? "You"
         : `<img src="${persona.image}" alt="${persona.name}" />`;
 
