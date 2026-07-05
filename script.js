@@ -144,6 +144,15 @@ function handleSendMessage(event) {
   const text = input.value.trim();
   if (!text) return;
 
+  const MAX_MESSAGE_LENGTH = 1000;
+
+  if (text.length > MAX_MESSAGE_LENGTH) {
+    alert(
+      `Message is too long (${text.length}/${MAX_MESSAGE_LENGTH} characters). Please shorten it.`,
+    );
+    return;
+  }
+
   chatHistories[currentPersonaId].push({ sender: "user", text });
   input.value = "";
   renderMessages();

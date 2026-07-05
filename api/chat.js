@@ -119,6 +119,14 @@ export default async function handler(req, res) {
   const { personaId, history } = req.body;
   const systemPrompt = SYSTEM_PROMPTS[personaId];
 
+  const MAX_MESSAGE_LENGTH = 1000;
+  const lastUserMessage = history?.[history.length - 1];
+  if (lastUserMessage && lastUserMessage.text.length > MAX_MESSAGE_LENGTH) {
+    return res.status(400).json({
+      error: `Message exceeds ${MAX_MESSAGE_LENGTH} character limit.`,
+    });
+  }
+
   const messages = [
     { role: "system", content: systemPrompt },
     ...history.map((msg) => ({
@@ -127,21 +135,35 @@ export default async function handler(req, res) {
     })),
   ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: messages, // the array you built earlier: system + user/assistant turns
-      max_tokens: 300, // caps reply length — controls cost per response
-    }),
-  });
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: messages,
+        max_tokens: 300,
+      }),
+    });
 
-  const data = await response.json();
-  const reply = data.choices[0].message.content;
+    const data = await response.json();
 
-  res.status(200).json({ reply });
+    if (!response.ok || !data.choices?.[0]?.message?.content) {
+      console.error("OpenAI API error:", data);
+      return res.status(502).json({
+        error:
+          "Sorry, I couldn't get a response right now. Please try again in a moment.",
+      });
+    }
+
+    res.status(200).json({ reply: data.choices[0].message.content });
+  } catch (err) {
+    console.error("Chat handler failed:", err);
+    res.status(500).json({
+      error: "Something went wrong reaching the AI. Please try again.",
+    });
+  }
 }
