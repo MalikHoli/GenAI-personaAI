@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/MalikHoli/GenAI-personaAI/issues"
   },
-  "homepage": "https://github.com/MalikHoli/GenAI-personaAI#readme"
+  "homepage": "https://github.com/MalikHoli/GenAI-personaAI#readme",
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
 }

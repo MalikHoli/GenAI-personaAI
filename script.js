@@ -5,22 +5,24 @@
    ====================================================== */
 const PERSONAS = {
   1: {
-    name: "Persona 1", // <-- rename e.g. "Aria"
-    tagline: "Ask me about tech",
-    initial: "P1",
+    name: "Hitesh Choudhary", // <-- rename e.g. "Aria"
+    tagline:
+      "Code seekho, chai ke saath — fundamentals, projects, aur career ki har baat",
+    initial: "HC",
     color: "#7c6ff0",
   },
   2: {
-    name: "Persona 2", // <-- rename e.g. "Sage"
-    tagline: "Ask me anything else",
-    initial: "P2",
+    name: "Piyush Garg", // <-- rename e.g. "Sage"
+    tagline:
+      "Stop watching, start building — full-stack, DevOps, aur GenAI, sab kuch project mode mein",
+    initial: "PG",
     color: "#3fb8af",
   },
 };
 
 const APP = {
-  title: "Ask me about tech",
-  subtitle: "Pick a persona to start chatting",
+  title: "Seekhna Hai Kuch Naya?",
+  subtitle: "Choose your coding mentor to begin",
 };
 
 // In-memory only — resets on page reload, nothing is saved to disk.
