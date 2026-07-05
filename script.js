@@ -57,9 +57,13 @@ function renderHomePage() {
 function initChatPage() {
   const params = new URLSearchParams(window.location.search);
   const requestedId = params.get("persona");
-  currentPersonaId = PERSONAS[requestedId]
-    ? requestedId
-    : Object.keys(PERSONAS)[0];
+
+  if (!PERSONAS[requestedId]) {
+    showInvalidPersonaError();
+    return; // stop here — don't render nav, don't load any persona
+  }
+
+  currentPersonaId = requestedId;
 
   renderPersonaNav();
   loadPersona(currentPersonaId);
@@ -168,4 +172,14 @@ function handleSendMessage(event) {
       });
       renderMessages();
     });
+}
+
+function showInvalidPersonaError() {
+  document.querySelector(".chat-layout").innerHTML = `
+    <div class="error-state">
+      <h2>Persona not found</h2>
+      <p>That persona doesn't exist. Please pick one from the home page.</p>
+      <a href="index.html" class="error-home-link">← Back to Home</a>
+    </div>
+  `;
 }
