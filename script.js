@@ -31,7 +31,44 @@ const APP = {
 const chatHistories = {};
 Object.keys(PERSONAS).forEach((id) => (chatHistories[id] = []));
 
+// Tracks whether each persona is currently "typing" a reply.
+const typingState = {};
+Object.keys(PERSONAS).forEach((id) => (typingState[id] = false));
+
 let currentPersonaId = null;
+
+/* ---------- Theme (light/dark) ---------- */
+const THEME_KEY = "personaai-theme";
+
+function getPreferredTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle) toggle.textContent = theme === "dark" ? "☀️" : "🌙";
+}
+
+function initTheme() {
+  applyTheme(getPreferredTheme());
+
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle) {
+    toggle.addEventListener("click", () => {
+      const next =
+        document.documentElement.getAttribute("data-theme") === "dark"
+          ? "light"
+          : "dark";
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+    });
+  }
+}
 
 /* ---------- Home page ---------- */
 function renderHomePage() {
@@ -118,6 +155,61 @@ function loadPersona(id) {
   renderMessages();
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function applyInlineFormatting(str) {
+  return str.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
+// Turns lightweight markdown (bold, numbered/bulleted lists, paragraphs)
+// from the assistant's reply into safe HTML so points render on their own
+// line instead of as one run-on paragraph.
+function formatMessageText(text) {
+  const lines = escapeHtml(text).split(/\r?\n/);
+  let html = "";
+  let listItems = [];
+  let listType = null;
+
+  function flushList() {
+    if (listItems.length) {
+      html += `<${listType}>${listItems
+        .map((li) => `<li>${li}</li>`)
+        .join("")}</${listType}>`;
+      listItems = [];
+      listType = null;
+    }
+  }
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushList();
+      return;
+    }
+
+    const numberedMatch = line.match(/^\d+\.\s+(.*)/);
+    const bulletMatch = line.match(/^[-*]\s+(.*)/);
+
+    if (numberedMatch) {
+      if (listType !== "ol") flushList();
+      listType = "ol";
+      listItems.push(applyInlineFormatting(numberedMatch[1]));
+    } else if (bulletMatch) {
+      if (listType !== "ul") flushList();
+      listType = "ul";
+      listItems.push(applyInlineFormatting(bulletMatch[1]));
+    } else {
+      flushList();
+      html += `<p>${applyInlineFormatting(line)}</p>`;
+    }
+  });
+  flushList();
+
+  return html;
+}
+
 function renderMessages() {
   const container = document.getElementById("messages");
   container.innerHTML = "";
@@ -137,9 +229,30 @@ function renderMessages() {
       <div class="message-avatar" style="background:${avatarColor}">${avatarInner}</div>
       <div class="message-bubble"></div>
     `;
-    row.querySelector(".message-bubble").textContent = msg.text;
+    const bubble = row.querySelector(".message-bubble");
+    if (msg.sender === "user") {
+      bubble.textContent = msg.text;
+    } else {
+      bubble.innerHTML = formatMessageText(msg.text);
+    }
     container.appendChild(row);
   });
+
+  if (typingState[currentPersonaId]) {
+    const row = document.createElement("div");
+    row.className = "message-row assistant typing";
+    row.innerHTML = `
+      <div class="message-avatar" style="background:${persona.color}">
+        <img src="${persona.image}" alt="${persona.name}" />
+      </div>
+      <div class="message-bubble typing-bubble">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+      </div>
+    `;
+    container.appendChild(row);
+  }
 
   container.scrollTop = container.scrollHeight;
 }
@@ -163,29 +276,34 @@ function handleSendMessage(event) {
   input.value = "";
   renderMessages();
 
-  // Placeholder reply — swap this out later for a real AI model call.
-  // setTimeout(() => {
-  //   chatHistories[currentPersonaId].push({
-  //     sender: "assistant",
-  //     text: "(This is a placeholder reply. Connect your AI model here.)"
-  //   });
-  //   renderMessages();
-  // }, 500);
+  const personaId = currentPersonaId;
+  typingState[personaId] = true;
+  renderMessages();
+
   fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      personaId: currentPersonaId,
-      history: chatHistories[currentPersonaId],
+      personaId,
+      history: chatHistories[personaId],
     }),
   })
     .then((res) => res.json())
     .then((data) => {
-      chatHistories[currentPersonaId].push({
+      chatHistories[personaId].push({
         sender: "assistant",
         text: data.reply,
       });
-      renderMessages();
+    })
+    .catch(() => {
+      chatHistories[personaId].push({
+        sender: "assistant",
+        text: "Sorry, something went wrong. Please try again.",
+      });
+    })
+    .finally(() => {
+      typingState[personaId] = false;
+      if (personaId === currentPersonaId) renderMessages();
     });
 }
 
