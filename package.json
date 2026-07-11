@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/MalikHoli/GenAI-personaAI#readme",
   "dependencies": {
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "openai": "^6.46.0"
   }
 }

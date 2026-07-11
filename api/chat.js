@@ -1,6 +1,9 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
+import OpenAI from "openai";
+const client = new OpenAI();
+
 import { getPersonaEntry } from "./personas/persona.registry.js";
 import { PromptAssembler, getTurnNumber } from "./lib/prompt-assembler.js";
 import { detectPromptInjection, detectOffDomain } from "./lib/moderation.js";
@@ -54,52 +57,37 @@ export default async function handler(req, res) {
   const { messages } = PromptAssembler.compose(personaEntry, history);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages,
-        max_tokens: 300,
-      }),
+    const response = await client.responses.create({
+      model: "gpt-4o-mini",
+      input: messages,
+      max_output_tokens: 300,
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("OpenAI API error:", data);
-
-      if (
-        response.status === 429 ||
-        data?.error?.code === "insufficient_quota"
-      ) {
-        return res
-          .status(200)
-          .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
-      }
-
+    // check for empty/missing output before returning success
+    if (!response.output_text || response.output_text.trim() === "") {
+      console.error("OpenAI API returned empty output_text:", response);
       return res.status(502).json({
         error:
           "Sorry, I couldn't get a response right now. Please try again in a moment.",
       });
     }
 
-    if (!data.choices?.[0]?.message?.content) {
-      console.error("OpenAI API error:", data);
-      return res.status(502).json({
-        error:
-          "Sorry, I couldn't get a response right now. Please try again in a moment.",
-      });
+    res.status(200).json({ reply: response.output_text });
+  } catch (error) {
+    console.error("OpenAI API error:", error);
+
+    if (
+      error instanceof OpenAI.RateLimitError ||
+      error?.error?.code === "insufficient_quota"
+    ) {
+      return res
+        .status(200)
+        .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
     }
 
-    res.status(200).json({ reply: data.choices[0].message.content });
-  } catch (err) {
-    console.error("Chat handler failed:", err);
-    res.status(500).json({
-      error: "Something went wrong reaching the AI. Please try again.",
+    return res.status(502).json({
+      error:
+        "Sorry, I couldn't get a response right now. Please try again in a moment.",
     });
   }
 }
