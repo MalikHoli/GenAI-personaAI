@@ -1,9 +1,3 @@
-import { config } from "dotenv";
-config({ path: ".env.local" });
-
-import OpenAI from "openai";
-const client = new OpenAI();
-
 import { getPersonaEntry } from "./personas/persona.registry.js";
 import { PromptAssembler, getTurnNumber } from "./lib/prompt-assembler.js";
 import { detectPromptInjection, detectOffDomain } from "./lib/moderation.js";
@@ -11,6 +5,16 @@ import {
   MAX_TURNS_PER_THREAD,
   MAX_MESSAGE_LENGTH,
 } from "./lib/context-config.js";
+import {
+  generateLatestResponse,
+  selfConsitencyPromptAssembler,
+} from "./lib/self-consistency-assembler.js";
+
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
+import OpenAI from "openai";
+const openaiClient = new OpenAI();
 
 export default async function handler(req, res) {
   const { personaId, history } = req.body;
@@ -56,38 +60,50 @@ export default async function handler(req, res) {
 
   const { messages } = PromptAssembler.compose(personaEntry, history);
 
+  const responsesToEvaluate = await generateLatestResponse.compose(
+    personaEntry,
+    messages,
+  );
+
+  const selfConsistencyPrompt = selfConsitencyPromptAssembler.compose(
+    personaEntry,
+    responsesToEvaluate,
+    history,
+  );
+
+  if (responsesToEvaluate.length === 0) {
+    return res.status(200).json({
+      reply:
+        "Sorry, I couldn't get a response right now. Please try again in a moment.",
+    });
+  }
+
   try {
-    const response = await client.responses.create({
+    const response = await openaiClient.responses.create({
       model: "gpt-4o-mini",
-      input: messages,
+      input: selfConsistencyPrompt,
       max_output_tokens: 300,
     });
 
-    // check for empty/missing output before returning success
     if (!response.output_text || response.output_text.trim() === "") {
-      console.error("OpenAI API returned empty output_text:", response);
       return res.status(502).json({
         error:
           "Sorry, I couldn't get a response right now. Please try again in a moment.",
       });
     }
 
-    res.status(200).json({ reply: response.output_text });
+    return res.status(200).json({ reply: response.output_text });
   } catch (error) {
     console.error("OpenAI API error:", error);
 
-    if (
-      error instanceof OpenAI.RateLimitError ||
-      error?.error?.code === "insufficient_quota"
-    ) {
+    if (error.status === 429 || error?.error?.code === "insufficient_quota") {
       return res
         .status(200)
         .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
     }
 
-    return res.status(502).json({
-      error:
-        "Sorry, I couldn't get a response right now. Please try again in a moment.",
-    });
+    return res
+      .status(502)
+      .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
   }
 }

@@ -17,12 +17,6 @@ const CRITICAL_REMINDER = `Before responding, remember:
     - your response should be always like you are talking to an individual not group of people
     - make sure numbered list is numbered properly`;
 
-// const SELF_CHECK = `Before you answer, silently verify:
-// - Did I stay in character and use the right voice/tone?
-// - Did I avoid anything in the refusal rules?
-// - Is my answer readable and not a wall of text?
-// Only output the final answer — never output this checklist.`;
-
 function formatFewShots(fewShots) {
   return fewShots
     .map(
@@ -54,8 +48,6 @@ function buildSystemBlock(personaPrompt, turnNumber) {
   if (shouldInjectDriftRefresh(turnNumber)) {
     blocks.push(personaPrompt.driftRefresh);
   }
-
-  //   blocks.push(SELF_CHECK);
 
   return blocks.filter(Boolean).join("\n\n---\n\n");
 }
