@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-import { selfConsistencyPrompt } from "./personas/self-consistency.prompt.js";
+import { selfConsistencyPrompt } from "../personas/self-consistency.prompt.js";
 
 const openaiClient = new OpenAI();
 const anthropicClient = new Anthropic();
@@ -48,17 +48,20 @@ async function callGeminiModel(systemPrompt, messages, model) {
 }
 
 export const generateLatestResponse = {
-  async compose(personaEntry, messages) {
+  async compose(messages) {
     const modelConfigs = [
       { model: "gpt-4o-mini", provider: "openai" },
       { model: "claude-haiku-4-5", provider: "anthropic" },
       { model: "gemini-2.5-flash", provider: "google" },
     ];
 
+    const systemPrompt =
+      messages.find((m) => m.role === "system")?.content ?? "";
+
     const results = await Promise.allSettled([
       callGptModel(messages, modelConfigs[0].model),
-      callClaudeModel(personaEntry.prompt, messages, modelConfigs[1].model),
-      callGeminiModel(personaEntry.prompt, messages, modelConfigs[2].model),
+      callClaudeModel(systemPrompt, messages, modelConfigs[1].model),
+      callGeminiModel(systemPrompt, messages, modelConfigs[2].model),
     ]);
 
     const responses = results
@@ -90,7 +93,7 @@ export const generateLatestResponse = {
           return null;
         }
 
-        return { model, modelResponse };
+        return { model, text };
       })
       .filter(Boolean);
 

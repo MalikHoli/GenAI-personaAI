@@ -60,10 +60,7 @@ export default async function handler(req, res) {
 
   const { messages } = PromptAssembler.compose(personaEntry, history);
 
-  const responsesToEvaluate = await generateLatestResponse.compose(
-    personaEntry,
-    messages,
-  );
+  const responsesToEvaluate = await generateLatestResponse.compose(messages);
 
   const selfConsistencyPrompt = selfConsitencyPromptAssembler.compose(
     personaEntry,
