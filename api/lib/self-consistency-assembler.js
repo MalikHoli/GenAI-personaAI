@@ -11,6 +11,10 @@ const openaiClient = new OpenAI();
 const anthropicClient = new Anthropic();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+const CRITICAL_REMINDER = `Before responding, remember: 
+    - your job is to provide the best response not providing the evaluation result or criteria
+    - Never provide your opinion but either the best response you find or the modified version`;
+
 async function callGptModel(messages, model) {
   return await openaiClient.responses.create({
     model: model,
@@ -126,6 +130,9 @@ export const selfConsitencyPromptAssembler = {
       .join("\n\n");
     blocks.push(responsesText);
 
+    blocks.push(CRITICAL_REMINDER);
+
+    console.log(blocks.filter(Boolean).join("\n\n---\n\n"));
     return blocks.filter(Boolean).join("\n\n---\n\n");
   },
 };

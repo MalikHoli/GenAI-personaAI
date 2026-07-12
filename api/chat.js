@@ -13,8 +13,11 @@ import {
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import OpenAI from "openai";
-const openaiClient = new OpenAI();
+// import OpenAI from "openai";
+// const openaiClient = new OpenAI();
+
+import Anthropic from "@anthropic-ai/sdk";
+const anthropicClient = new Anthropic();
 
 export default async function handler(req, res) {
   const { personaId, history } = req.body;
@@ -76,22 +79,43 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await openaiClient.responses.create({
-      model: "gpt-4o-mini",
-      input: selfConsistencyPrompt,
-      max_output_tokens: 300,
+    // const response = await openaiClient.responses.create({
+    //   model: "gpt-4o-mini",
+    //   input: selfConsistencyPrompt,
+    // });
+    const response = await anthropicClient.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 300,
+      system: selfConsistencyPrompt,
+      messages: [
+        {
+          role: "user",
+          content: "Please provide just the best response as instructed.",
+        },
+      ],
     });
 
-    if (!response.output_text || response.output_text.trim() === "") {
+    const outputText = response.content[0]?.text;
+
+    if (!outputText || outputText.trim() === "") {
       return res.status(502).json({
         error:
           "Sorry, I couldn't get a response right now. Please try again in a moment.",
       });
     }
 
-    return res.status(200).json({ reply: response.output_text });
+    return res.status(200).json({ reply: outputText });
+
+    // if (!response.output_text || response.output_text.trim() === "") {
+    //   return res.status(502).json({
+    //     error:
+    //       "Sorry, I couldn't get a response right now. Please try again in a moment.",
+    //   });
+    // }
+
+    // return res.status(200).json({ reply: response.output_text });
   } catch (error) {
-    console.error("OpenAI API error:", error);
+    console.error("AI API error:", error);
 
     if (error.status === 429 || error?.error?.code === "insufficient_quota") {
       return res
