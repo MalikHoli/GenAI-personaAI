@@ -9,6 +9,7 @@ import {
   generateLatestResponse,
   selfConsitencyPromptAssembler,
 } from "./lib/self-consistency-assembler.js";
+import { parseSelectedResponse } from "./lib/response-schema.js";
 
 import { config } from "dotenv";
 config({ path: ".env.local" });
@@ -79,41 +80,37 @@ export default async function handler(req, res) {
   }
 
   try {
-    // const response = await openaiClient.responses.create({
-    //   model: "gpt-4o-mini",
-    //   input: selfConsistencyPrompt,
-    // });
     const response = await anthropicClient.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 300,
+      max_tokens: 500,
       system: selfConsistencyPrompt,
       messages: [
         {
           role: "user",
-          content: "Please provide just the best response as instructed.",
+          content:
+            "Provide the best response as a single JSON object, exactly as instructed in the OUTPUT FORMAT section.",
         },
+        // Prefilling the assistant turn with "{" forces the model to start
+        // with JSON instead of prose like "Response B (with minor modification):".
+        { role: "assistant", content: "{" },
       ],
     });
 
-    const outputText = response.content[0]?.text;
+    const outputText = "{" + (response.content[0]?.text ?? "");
 
-    if (!outputText || outputText.trim() === "") {
-      return res.status(502).json({
-        error:
-          "Sorry, I couldn't get a response right now. Please try again in a moment.",
-      });
+    const selected = parseSelectedResponse(outputText);
+
+    if (selected) {
+      return res.status(200).json({ reply: selected.responseContent });
     }
 
-    return res.status(200).json({ reply: outputText });
-
-    // if (!response.output_text || response.output_text.trim() === "") {
-    //   return res.status(502).json({
-    //     error:
-    //       "Sorry, I couldn't get a response right now. Please try again in a moment.",
-    //   });
-    // }
-
-    // return res.status(200).json({ reply: response.output_text });
+    // Selector output didn't match the schema — fall back to the first raw
+    // candidate so the user never sees evaluation commentary.
+    console.error(
+      "Selector output was not valid JSON, falling back:",
+      outputText,
+    );
+    return res.status(200).json({ reply: responsesToEvaluate[0].text });
   } catch (error) {
     console.error("AI API error:", error);
 

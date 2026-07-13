@@ -11,22 +11,24 @@ const openaiClient = new OpenAI();
 const anthropicClient = new Anthropic();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const CRITICAL_REMINDER = `Before responding, remember: 
+const CRITICAL_REMINDER = `Before responding, remember:
     - your job is to provide the best response not providing the evaluation result or criteria
-    - Never provide your opinion but either the best response you find or the modified version`;
+    - Never provide your opinion but either the best response you find or the modified version
+    - Output MUST be the single JSON object described in the OUTPUT FORMAT section — nothing before or after it
+    - "responseContent" is shown directly to the user: it must never mention response labels, modifications, or the evaluation process`;
 
-async function callGptModel(messages, model) {
-  return await openaiClient.responses.create({
+function callGptModel(messages, model) {
+  return openaiClient.responses.create({
     model: model,
     input: messages,
     max_output_tokens: 300,
   });
 }
 
-async function callClaudeModel(systemPrompt, messages, model) {
+function callClaudeModel(systemPrompt, messages, model) {
   const nonSystemMessages = messages.filter((m) => m.role !== "system");
 
-  return await anthropicClient.messages.create({
+  return anthropicClient.messages.create({
     model,
     max_tokens: 300,
     system: systemPrompt,
@@ -34,7 +36,7 @@ async function callClaudeModel(systemPrompt, messages, model) {
   });
 }
 
-async function callGeminiModel(systemPrompt, messages, model) {
+function callGeminiModel(systemPrompt, messages, model) {
   const nonSystemMessages = messages.filter((m) => m.role !== "system");
 
   const geminiModel = genAI.getGenerativeModel({
@@ -47,8 +49,7 @@ async function callGeminiModel(systemPrompt, messages, model) {
     parts: [{ text: m.content }],
   }));
 
-  const result = await geminiModel.generateContent({ contents });
-  return result.response;
+  return geminiModel.generateContent({ contents });
 }
 
 export const generateLatestResponse = {
@@ -88,7 +89,7 @@ export const generateLatestResponse = {
             text = value.content[0]?.text;
             break;
           case "google":
-            text = value.text();
+            text = value.response.text();
             break;
         }
 
