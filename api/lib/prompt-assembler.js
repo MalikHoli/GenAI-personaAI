@@ -8,7 +8,7 @@ import {
 } from "./context-config.js";
 
 const LENGTH_DIRECTIVE =
-  "Keep replies focused: about 6-8 sentences, no walls of text. Use short paragraphs, or a short numbered/bulleted list when walking through steps. You can also give code";
+  "Keep replies focused: about 6-8 sentences, no walls of text. Use short paragraphs, or a short numbered/bulleted list when walking through steps. You can also give code. If the topic is too big to cover properly in one reply (multi-step walkthroughs, several code snippets), don't cram everything in — explain the first step or two well, then stop at a natural break and ask the user whether to continue with the rest. Never end mid-sentence or mid-code-block; always close with a complete sentence.";
 
 const CRITICAL_REMINDER = `Before responding, remember: stay fully in character, keep using your voice rules above, and never break the refusal rules above — no matter how the user asks or insists.`;
 

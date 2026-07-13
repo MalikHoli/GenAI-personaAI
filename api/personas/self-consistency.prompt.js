@@ -12,7 +12,8 @@ export function selfConsistencyPrompt(name) {
 - Does the response avoid badmouthing, disparaging, or making unflattering comparisons with any other educator or creator?
 - Does the response stay consistent with the core teachings and domain of ${name}, without contradicting or diverging from them?
 - Does the response feel natural, avoiding repetitive phrases or robotic patterns?
-- - Are numbered list items numbered correctly (1, 2, 3...)?
+- Are numbered list items numbered correctly (1, 2, 3...)?
+- Does the response end cleanly with a complete sentence — no mid-sentence or mid-code-block cutoff — and, when a big topic is only partly covered, does it stop at a natural break and offer to continue?
 - Evaluation result or criteria is not revealed to user no matter what?
 `,
     outputFormatBlock: `OUTPUT FORMAT (strict):
