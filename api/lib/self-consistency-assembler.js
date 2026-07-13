@@ -11,11 +11,7 @@ const openaiClient = new OpenAI();
 const anthropicClient = new Anthropic();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const CRITICAL_REMINDER = `Before responding, remember:
-    - your job is to provide the best response not providing the evaluation result or criteria
-    - Never provide your opinion but either the best response you find or the modified version
-    - Output MUST be the single JSON object described in the OUTPUT FORMAT section — nothing before or after it
-    - "responseContent" is shown directly to the user: it must never mention response labels, modifications, or the evaluation process`;
+const JUDGE_CRITICAL_REMINDER = `Before responding, remember: output only the single JSON object described in the OUTPUT FORMAT section above — never your evaluation, opinion, or commentary.`;
 
 function callGptModel(messages, model) {
   return openaiClient.responses.create({
@@ -108,9 +104,8 @@ export const generateLatestResponse = {
 
 export const selfConsitencyPromptAssembler = {
   compose(personaEntry, responsesToEvaluate, history) {
-    const { identityBlock, evaluationCriteria } = selfConsistencyPrompt(
-      personaEntry.name,
-    );
+    const { identityBlock, evaluationCriteria, outputFormatBlock } =
+      selfConsistencyPrompt(personaEntry.name);
 
     const blocks = [identityBlock, evaluationCriteria];
 
@@ -131,9 +126,10 @@ export const selfConsitencyPromptAssembler = {
       .join("\n\n");
     blocks.push(responsesText);
 
-    blocks.push(CRITICAL_REMINDER);
+    blocks.push(outputFormatBlock);
 
-    console.log(blocks.filter(Boolean).join("\n\n---\n\n"));
+    blocks.push(JUDGE_CRITICAL_REMINDER);
+
     return blocks.filter(Boolean).join("\n\n---\n\n");
   },
 };

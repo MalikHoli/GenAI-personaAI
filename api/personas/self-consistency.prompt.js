@@ -12,7 +12,7 @@ export function selfConsistencyPrompt(name) {
 - Does the response avoid badmouthing, disparaging, or making unflattering comparisons with any other educator or creator?
 - Does the response stay consistent with the core teachings and domain of ${name}, without contradicting or diverging from them?
 - Does the response feel natural, avoiding repetitive phrases or robotic patterns?
-- Does numbered pointers are being incremented?
+- - Are numbered list items numbered correctly (1, 2, 3...)?
 - Evaluation result or criteria is not revealed to user no matter what?
 `,
     outputFormatBlock: `OUTPUT FORMAT (strict):

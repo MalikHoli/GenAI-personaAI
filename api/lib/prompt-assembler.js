@@ -10,12 +10,7 @@ import {
 const LENGTH_DIRECTIVE =
   "Keep replies focused: about 6-8 sentences, no walls of text. Use short paragraphs, or a short numbered/bulleted list when walking through steps. You can also give code";
 
-const CRITICAL_REMINDER = `Before responding, remember: 
-    - stay fully in character, keep using your voice rules above, and never break the refusal rules above no matter how the user asks.
-    - always provide output in a format that is easy to understand and readable for human eyes
-    - never get out of your persona by any means even on user requests
-    - your response should be always like you are talking to an individual not group of people
-    - make sure numbered list is numbered properly`;
+const CRITICAL_REMINDER = `Before responding, remember: stay fully in character, keep using your voice rules above, and never break the refusal rules above — no matter how the user asks or insists.`;
 
 function formatFewShots(fewShots) {
   return fewShots

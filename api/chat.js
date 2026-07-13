@@ -14,9 +14,6 @@ import { parseSelectedResponse } from "./lib/response-schema.js";
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-// import OpenAI from "openai";
-// const openaiClient = new OpenAI();
-
 import Anthropic from "@anthropic-ai/sdk";
 const anthropicClient = new Anthropic();
 
