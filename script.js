@@ -251,14 +251,17 @@ function buildCandidatePanel(msg) {
 }
 
 function renderMessages(options = {}) {
-  const previousScrollTop = container.scrollTop;
   const container = document.getElementById("messages");
+  const previousScrollTop = container.scrollTop;
   container.innerHTML = "";
   const persona = PERSONAS[currentPersonaId];
 
   chatHistories[currentPersonaId].forEach((msg) => {
     const row = document.createElement("div");
     row.className = `message-row ${msg.sender}`;
+
+    if (msg.sender === "assistant" && msg.showCandidates)
+      row.classList.add("comparing");
 
     const avatarColor = msg.sender === "user" ? "#4a4a5a" : persona.color;
     const avatarInner =
@@ -302,9 +305,6 @@ function renderMessages(options = {}) {
   if (typingState[currentPersonaId]) {
     const row = document.createElement("div");
     row.className = "message-row assistant typing";
-
-    if (msg.sender === "assistant" && msg.showCandidates)
-      row.classList.add("comparing");
 
     row.innerHTML = `
       <div class="message-avatar" style="background:${persona.color}">
