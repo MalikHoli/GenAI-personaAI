@@ -11,11 +11,15 @@ import {
 } from "./lib/self-consistency-assembler.js";
 import { parseSelectedResponse } from "./lib/response-schema.js";
 
-import { config } from "dotenv";
-config({ path: ".env.local" });
+import { config as loadEnv } from "dotenv";
+loadEnv({ path: ".env.local" });
 
 import Anthropic from "@anthropic-ai/sdk";
 const anthropicClient = new Anthropic();
+
+// Lets Vercel flush res.write() chunks as they happen instead of buffering
+// the whole response — required for the streamed status events below.
+export const config = { supportsResponseStreaming: true };
 
 export default async function handler(req, res) {
   const { personaId, history } = req.body;
@@ -59,22 +63,34 @@ export default async function handler(req, res) {
       .json({ reply: personaEntry.prompt.offDomainTemplate });
   }
 
+  // Everything past this point takes several seconds (3 model calls, then a
+  // judge call), so the response streams newline-delimited JSON: one status
+  // event per pipeline stage, then a final "done" event with the reply.
+  res.writeHead(200, {
+    "Content-Type": "application/x-ndjson",
+    "Cache-Control": "no-cache",
+  });
+  const sendEvent = (event) => res.write(JSON.stringify(event) + "\n");
+
   const { messages } = PromptAssembler.compose(personaEntry, history);
 
+  sendEvent({ status: "generating" });
   const responsesToEvaluate = await generateLatestResponse.compose(messages);
+
+  if (responsesToEvaluate.length === 0) {
+    sendEvent({
+      status: "done",
+      reply:
+        "Sorry, I couldn't get a response right now. Please try again in a moment.",
+    });
+    return res.end();
+  }
 
   const selfConsistencyPrompt = selfConsitencyPromptAssembler.compose(
     personaEntry,
     responsesToEvaluate,
     history,
   );
-
-  if (responsesToEvaluate.length === 0) {
-    return res.status(200).json({
-      reply:
-        "Sorry, I couldn't get a response right now. Please try again in a moment.",
-    });
-  }
 
   // Labels match the "Response A/B/C" labels used in the judge prompt, so the
   // frontend can show all candidates and highlight which one was selected.
@@ -83,6 +99,8 @@ export default async function handler(req, res) {
     model: r.model,
     text: r.text,
   }));
+
+  sendEvent({ status: "evaluating" });
 
   try {
     const response = await anthropicClient.messages.create({
@@ -106,11 +124,13 @@ export default async function handler(req, res) {
     const selected = parseSelectedResponse(outputText);
 
     if (selected) {
-      return res.status(200).json({
+      sendEvent({
+        status: "done",
         reply: selected.responseContent,
         candidates,
         selectedLabel: selected.response,
       });
+      return res.end();
     }
 
     // Selector output didn't match the schema — fall back to the first raw
@@ -119,22 +139,28 @@ export default async function handler(req, res) {
       "Selector output was not valid JSON, falling back:",
       outputText,
     );
-    return res.status(200).json({
+    sendEvent({
+      status: "done",
       reply: responsesToEvaluate[0].text,
       candidates,
       selectedLabel: "A",
     });
+
+    return res.end();
   } catch (error) {
     console.error("AI API error:", error);
 
     if (error.status === 429 || error?.error?.code === "insufficient_quota") {
-      return res
-        .status(200)
-        .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
+      sendEvent({
+        status: "done",
+        reply: personaEntry.prompt.quotaExhaustedTemplat,
+      });
+
+      return res.end();
     }
 
-    return res
-      .status(502)
-      .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
+    // return res
+    //   .status(502)
+    //   .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
   }
 }

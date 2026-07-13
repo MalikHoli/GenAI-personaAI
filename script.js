@@ -22,6 +22,11 @@ const PERSONAS = {
   },
 };
 
+const TYPING_STATUS_LABELS = {
+  generating: "Gathering responses from 3 models…",
+  evaluating: "Evaluating responses & picking the best…",
+};
+
 const APP = {
   title: "Seekhna Hai Kuch Naya?",
   subtitle: "Choose your coding mentor to begin",
@@ -303,6 +308,8 @@ function renderMessages(options = {}) {
   });
 
   if (typingState[currentPersonaId]) {
+    const statusLabel = TYPING_STATUS_LABELS[typingState[currentPersonaId]];
+
     const row = document.createElement("div");
     row.className = "message-row assistant typing";
 
@@ -314,6 +321,7 @@ function renderMessages(options = {}) {
         <span class="typing-dot"></span>
         <span class="typing-dot"></span>
         <span class="typing-dot"></span>
+        ${statusLabel ? `<span class="typing-status">${statusLabel}</span>` : ""}
       </div>
     `;
     container.appendChild(row);
@@ -324,7 +332,36 @@ function renderMessages(options = {}) {
     : container.scrollHeight;
 }
 
-function handleSendMessage(event) {
+// Reads newline-delimited JSON events from a streaming /api/chat response.
+// Intermediate events carry the pipeline status ("generating", "evaluating");
+// the final "done" event carries the reply plus the candidate data.
+async function readStatusStream(res, onStatus) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalEvent = null;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let newlineIndex;
+    while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (!line) continue;
+      const event = JSON.parse(line);
+      if (event.status === "done") finalEvent = event;
+      else onStatus(event.status);
+    }
+  }
+
+  if (!finalEvent) throw new Error("Stream ended without a final response");
+  return finalEvent;
+}
+
+async function handleSendMessage(event) {
   event.preventDefault();
   const input = document.getElementById("chat-input");
   const text = input.value.trim();
@@ -341,39 +378,49 @@ function handleSendMessage(event) {
 
   chatHistories[currentPersonaId].push({ sender: "user", text });
   input.value = "";
-  renderMessages();
 
   const personaId = currentPersonaId;
-  typingState[personaId] = true;
+  typingState[personaId] = "generating";
   renderMessages();
 
-  fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      personaId,
-      history: chatHistories[personaId],
-    }),
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      chatHistories[personaId].push({
-        sender: "assistant",
-        text: data.reply,
-        candidates: data.candidates,
-        selectedLabel: data.selectedLabel,
-      });
-    })
-    .catch(() => {
-      chatHistories[personaId].push({
-        sender: "assistant",
-        text: "Sorry, something went wrong. Please try again.",
-      });
-    })
-    .finally(() => {
-      typingState[personaId] = false;
-      if (personaId === currentPersonaId) renderMessages();
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personaId,
+        history: chatHistories[personaId],
+      }),
     });
+
+    const contentType = res.headers.get("content-type") ?? "";
+    let data;
+
+    if (contentType.includes("application/x-ndjson")) {
+      data = await readStatusStream(res, (status) => {
+        typingState[personaId] = status;
+        if (personaId === currentPersonaId) renderMessages();
+      });
+    } else {
+      // Canned replies (moderation, turn cap, validation) are plain JSON.
+      data = await res.json();
+    }
+
+    chatHistories[personaId].push({
+      sender: "assistant",
+      text: data.reply,
+      candidates: data.candidates,
+      selectedLabel: data.selectedLabel,
+    });
+  } catch {
+    chatHistories[personaId].push({
+      sender: "assistant",
+      text: "Sorry, something went wrong. Please try again.",
+    });
+  } finally {
+    typingState[personaId] = false;
+    if (personaId === currentPersonaId) renderMessages();
+  }
 }
 
 function showInvalidPersonaError() {
