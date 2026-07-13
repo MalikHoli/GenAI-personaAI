@@ -210,7 +210,48 @@ function formatMessageText(text) {
   return html;
 }
 
-function renderMessages() {
+// Builds the comparison view of the raw responses from all three models,
+// highlighting the one the self-consistency judge selected as the final reply.
+function buildCandidatePanel(msg) {
+  const panel = document.createElement("div");
+  panel.className = "candidate-panel";
+
+  const title = document.createElement("div");
+  title.className = "candidate-panel-title";
+  title.textContent =
+    "Self-consistency: 3 models answered, the judge picked one";
+  panel.appendChild(title);
+
+  msg.candidates.forEach((candidate) => {
+    const isSelected = candidate.label === msg.selectedLabel;
+    const card = document.createElement("div");
+    card.className = "candidate-card" + (isSelected ? " selected" : "");
+    card.innerHTML = `
+      <div class="candidate-card-header">
+        <span>Response ${candidate.label} — ${candidate.model}</span>
+        ${isSelected ? '<span class="candidate-badge">✓ selected</span>' : ""}
+      </div>
+      <div class="candidate-card-body"></div>
+    `;
+    card.querySelector(".candidate-card-body").innerHTML = formatMessageText(
+      candidate.text,
+    );
+    panel.appendChild(card);
+  });
+
+  if (msg.selectedLabel === "D") {
+    const note = document.createElement("div");
+    note.className = "candidate-modified-note";
+    note.textContent =
+      "None of the candidates fully met the evaluation criteria, so the judge edited one — the final reply is a modified version (Response D).";
+    panel.appendChild(note);
+  }
+
+  return panel;
+}
+
+function renderMessages(options = {}) {
+  const previousScrollTop = container.scrollTop;
   const container = document.getElementById("messages");
   container.innerHTML = "";
   const persona = PERSONAS[currentPersonaId];
@@ -230,17 +271,41 @@ function renderMessages() {
       <div class="message-bubble"></div>
     `;
     const bubble = row.querySelector(".message-bubble");
+
     if (msg.sender === "user") {
       bubble.textContent = msg.text;
+    } else if (msg.showCandidates && msg.candidates?.length) {
+      bubble.appendChild(buildCandidatePanel(msg));
     } else {
       bubble.innerHTML = formatMessageText(msg.text);
     }
+
+    // Replies that went through the self-consistency ensemble carry the raw
+    // candidates — offer a switch between them and the final response.
+    if (msg.sender === "assistant" && msg.candidates?.length) {
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "candidate-toggle";
+      toggle.textContent = msg.showCandidates
+        ? "← Back to final response"
+        : "⚖ Compare the 3 model responses";
+      toggle.addEventListener("click", () => {
+        msg.showCandidates = !msg.showCandidates;
+        renderMessages({ preserveScroll: true });
+      });
+      bubble.appendChild(toggle);
+    }
+
     container.appendChild(row);
   });
 
   if (typingState[currentPersonaId]) {
     const row = document.createElement("div");
     row.className = "message-row assistant typing";
+
+    if (msg.sender === "assistant" && msg.showCandidates)
+      row.classList.add("comparing");
+
     row.innerHTML = `
       <div class="message-avatar" style="background:${persona.color}">
         <img src="${persona.image}" alt="${persona.name}" />
@@ -254,7 +319,9 @@ function renderMessages() {
     container.appendChild(row);
   }
 
-  container.scrollTop = container.scrollHeight;
+  container.scrollTop = options.preserveScroll
+    ? previousScrollTop
+    : container.scrollHeight;
 }
 
 function handleSendMessage(event) {
@@ -293,6 +360,8 @@ function handleSendMessage(event) {
       chatHistories[personaId].push({
         sender: "assistant",
         text: data.reply,
+        candidates: data.candidates,
+        selectedLabel: data.selectedLabel,
       });
     })
     .catch(() => {

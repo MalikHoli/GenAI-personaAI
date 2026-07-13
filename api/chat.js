@@ -76,6 +76,14 @@ export default async function handler(req, res) {
     });
   }
 
+  // Labels match the "Response A/B/C" labels used in the judge prompt, so the
+  // frontend can show all candidates and highlight which one was selected.
+  const candidates = responsesToEvaluate.map((r, i) => ({
+    label: ["A", "B", "C"][i],
+    model: r.model,
+    text: r.text,
+  }));
+
   try {
     const response = await anthropicClient.messages.create({
       model: "claude-haiku-4-5",
@@ -98,7 +106,11 @@ export default async function handler(req, res) {
     const selected = parseSelectedResponse(outputText);
 
     if (selected) {
-      return res.status(200).json({ reply: selected.responseContent });
+      return res.status(200).json({
+        reply: selected.responseContent,
+        candidates,
+        selectedLabel: selected.response,
+      });
     }
 
     // Selector output didn't match the schema — fall back to the first raw
@@ -107,7 +119,11 @@ export default async function handler(req, res) {
       "Selector output was not valid JSON, falling back:",
       outputText,
     );
-    return res.status(200).json({ reply: responsesToEvaluate[0].text });
+    return res.status(200).json({
+      reply: responsesToEvaluate[0].text,
+      candidates,
+      selectedLabel: "A",
+    });
   } catch (error) {
     console.error("AI API error:", error);
 
