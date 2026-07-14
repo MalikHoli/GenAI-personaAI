@@ -150,17 +150,12 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error("AI API error:", error);
 
-    if (error.status === 429 || error?.error?.code === "insufficient_quota") {
-      sendEvent({
-        status: "done",
-        reply: personaEntry.prompt.quotaExhaustedTemplat,
-      });
-
-      return res.end();
-    }
-
-    // return res
-    //   .status(502)
-    //   .json({ reply: personaEntry.prompt.quotaExhaustedTemplate });
+    // Headers are already sent (streaming), so errors also go out as a
+    // final "done" event instead of an HTTP error status.
+    sendEvent({
+      status: "done",
+      reply: personaEntry.prompt.quotaExhaustedTemplate,
+    });
+    return res.end();
   }
 }
